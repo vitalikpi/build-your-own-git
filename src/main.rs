@@ -23,8 +23,8 @@ fn main() {
         let object_hash = args[3].as_str();
         let subdirectory = &object_hash[..2]; // WTF do i do here?
         let file_name = &object_hash[3..];
-        
-        let path: path::PathBuf = [subdirectory, file_name].iter().collect();
+
+        let path: path::PathBuf = ["objects", subdirectory, file_name].iter().collect();
 
         eprintln!("{}", &path.display());
 
