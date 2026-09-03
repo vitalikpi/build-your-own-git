@@ -42,7 +42,7 @@ fn main() {
 
         // Write the content to stdout
         let actual_content = &decoded_content[delimiter_index+1..];
-        println!("{}", actual_content)
+        print!("{}", actual_content)
 
 
     } else {
