@@ -26,14 +26,13 @@ fn main() {
 
         let path: path::PathBuf = [".git", "objects", subdirectory, file_name].iter().collect();
 
-        eprintln!("{}", &path.display());
+        //eprintln!("{}", &path.display());
 
         // Read the contents of the blob object file from the .git/objects directory
-        let content = fs::read_to_string(path).unwrap();
-        let content_bytes = content.as_bytes();
+        let content_bytes = fs::read(path).unwrap();
 
         // Decompress the contents using Zlib
-        let mut decoder = ZlibDecoder::new(content_bytes);
+        let mut decoder = ZlibDecoder::new(&*content_bytes); // TODO: understand WTF is &*
 
         let mut decoded_content = String::new();
         decoder.read_to_string(&mut decoded_content).unwrap();
