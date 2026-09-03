@@ -24,6 +24,8 @@ fn main() {
         let subdirectory = &object_hash[..3]; // WTF do i do here?
         let path: path::PathBuf = [subdirectory, object_hash].iter().collect();
 
+        eprintln!("{}", &path.display());
+
         // Read the contents of the blob object file from the .git/objects directory
         let content = fs::read_to_string(path).unwrap();
         let content_bytes = content.as_bytes();
