@@ -21,7 +21,7 @@ fn main() {
     } else if args[1] == "cat-file" {
         // Make the path to blob in the
         let object_hash = args[3].as_str();
-        let subdirectory = &object_hash[..3]; // WTF do i do here?
+        let subdirectory = &object_hash[..2]; // WTF do i do here?
         let path: path::PathBuf = [subdirectory, object_hash].iter().collect();
 
         eprintln!("{}", &path.display());
