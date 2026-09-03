@@ -22,7 +22,9 @@ fn main() {
         // Make the path to blob in the
         let object_hash = args[3].as_str();
         let subdirectory = &object_hash[..2]; // WTF do i do here?
-        let path: path::PathBuf = [subdirectory, object_hash].iter().collect();
+        let file_name = &object_hash[3..];
+        
+        let path: path::PathBuf = [subdirectory, file_name].iter().collect();
 
         eprintln!("{}", &path.display());
 
