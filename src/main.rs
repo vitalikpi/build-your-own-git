@@ -51,7 +51,7 @@ fn main() {
 
         let content_bytes = fs::read(path).unwrap();
 
-        let object_hash: String = Sha1::digest(&content_bytes).iter().map(|x| format!("{:x}", x)).collect();
+        let object_hash: String = Sha1::digest(&content_bytes).iter().map(|x| format!("{:2x}", x)).collect();
 
 
         let subdirectory = &object_hash[..2];
@@ -71,7 +71,7 @@ fn main() {
         file.write(b"blob\0").unwrap();
         file.write(&*compressed).unwrap();
         file.sync_all().unwrap();
-        
+
         println!("{}", object_hash);
     } else {
         println!("unknown command: {}", args[1])
