@@ -71,7 +71,8 @@ fn main() {
         file.write(b"blob\0").unwrap();
         file.write(&*compressed).unwrap();
         file.sync_all().unwrap();
-
+        
+        println!("{}", object_hash);
     } else {
         println!("unknown command: {}", args[1])
     }
