@@ -64,11 +64,12 @@ fn main() {
         let file_path: path::PathBuf = [".git", "objects", subdirectory, file_name].iter().collect();
 
         let mut e = ZlibEncoder::new(Vec::new(), Compression::default());
+        e.write(b"blob\0").unwrap();
         e.write_all(&*content_bytes).unwrap();
         let compressed = e.finish().unwrap();
 
         let mut file = fs::File::create(file_path).unwrap();
-        file.write(b"blob\0").unwrap();
+        //file.write(b"blob\0").unwrap();
         file.write(&*compressed).unwrap();
         file.sync_all().unwrap();
 
