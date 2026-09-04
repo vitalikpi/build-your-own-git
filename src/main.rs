@@ -51,7 +51,16 @@ fn main() {
 
         let content_bytes = fs::read(path).unwrap();
 
-        let object_hash: String = Sha1::digest(&content_bytes).iter().map(|x| format!("{:02x}", x)).collect();
+        let mut content_to_write = Vec::new();
+
+        content_to_write.write(b"blob ").unwrap();
+        content_to_write.write(format!("{}", content_bytes.len()).as_bytes()).unwrap();
+        content_to_write.write(b"\0").unwrap();
+        content_to_write.write(&content_bytes).unwrap();
+
+
+
+        let object_hash: String = Sha1::digest(&content_to_write).iter().map(|x| format!("{:02x}", x)).collect();
 
 
         let subdirectory = &object_hash[..2];
@@ -64,10 +73,7 @@ fn main() {
         let file_path: path::PathBuf = [".git", "objects", subdirectory, file_name].iter().collect();
 
         let mut e = ZlibEncoder::new(Vec::new(), Compression::default());
-        e.write(b"blob ").unwrap();
-        e.write(format!("{}", content_bytes.len()).as_bytes()).unwrap();
-        e.write(b"\0").unwrap();
-        e.write_all(&*content_bytes).unwrap();
+        e.write_all(&*content_to_write).unwrap();
         let compressed = e.finish().unwrap();
 
         let mut file = fs::File::create(file_path).unwrap();
