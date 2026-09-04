@@ -51,7 +51,7 @@ fn main() {
 
         let content_bytes = fs::read(path).unwrap();
 
-        let object_hash: String = Sha1::digest(&content_bytes).iter().map(|x| format!("{:2x}", x)).collect();
+        let object_hash: String = Sha1::digest(&content_bytes).iter().map(|x| format!("{:02x}", x)).collect();
 
 
         let subdirectory = &object_hash[..2];
