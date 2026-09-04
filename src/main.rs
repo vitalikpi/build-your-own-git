@@ -33,10 +33,10 @@ fn cat_file(object_hash: &str) {
     let path: path::PathBuf = make_object_path(object_hash);
 
     // Read the contents of the blob object file from the .git/objects directory
-    let blobl_content = fs::read(path).unwrap();
+    let blob_content = fs::read(path).unwrap();
 
     // Decompress the contents
-    let mut decoder = ZlibDecoder::new(&*blobl_content); // TODO: understand WTF is &*
+    let mut decoder = ZlibDecoder::new(&*blob_content);
     let mut decoded_content = String::new();
     decoder.read_to_string(&mut decoded_content).unwrap();
 
