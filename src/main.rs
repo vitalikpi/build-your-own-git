@@ -1,15 +1,12 @@
-#[allow(unused_imports)]
 use std::env;
-#[allow(unused_imports)]
-use std::char;
-use std::fs;
-use std::io::Read;
-use std::path;
 use flate2::Compression;
 use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
-use sha1::{Sha1, Digest};
+use sha1::{Digest, Sha1};
+use std::fs;
+use std::io::Read;
 use std::io::prelude::*;
+use std::path;
 fn main() {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
     eprintln!("Logs from your program will appear here!");
