@@ -24,6 +24,9 @@ fn main() {
     } else if args[1] == "hash-object" {
         let path = &args[3];
         hash_object(path);
+    } else if args[1] == "ls-tree" {
+        let tree_sha = &args[3];
+        ls_tree(tree_sha)
     } else {
         println!("unknown command: {}", args[1])
     }
@@ -78,6 +81,51 @@ fn hash_object(path: &str) {
     blobl_file.sync_all().unwrap();
 
     println!("{}", object_hash);
+}
+
+fn ls_tree(tree_sha: &String) {
+    let path: path::PathBuf = make_object_path(tree_sha);
+
+    // Read the contents of the blob object file from the .git/objects directory
+    let blob_content = fs::read(path).unwrap();
+
+    // Decompress the contents
+    let mut decoder = ZlibDecoder::new(&*blob_content);
+    let mut decoded_content: Vec<u8> = Vec::new();
+    decoder.read_to_end(&mut decoded_content).unwrap();
+
+    let mut i = 0;
+    while i < decoded_content.len() {
+        let mut mode: Vec<u8> = Vec::new();
+
+        while decoded_content[i] != b' ' {
+            mode.push(decoded_content[i]);
+            i += 1;
+        }
+
+        i += 1; // skip the space
+
+        let mut name: Vec<u8> = Vec::new();
+        while decoded_content[i] != b'\0' {
+            name.push(decoded_content[i]);
+            i += 1;
+        }
+
+        let mut sha: Vec<u8> = Vec::new();
+        i += 1; // skip the space
+        let end_of_sha_index = i +20;
+        while i < end_of_sha_index {
+            sha.push(decoded_content[i]);
+            i += 1;
+        }
+
+        //let mode_str = String::from_utf8(mode).unwrap();
+        let name_str = String::from_utf8(name).unwrap();
+        //let sha_str = sha.iter().map(|x| format!("{:02x}", x)).collect();
+
+        //result.push((mode_str, name_str, sha_str));
+        println!("{}", name_str)
+    }
 }
 
 fn make_object_partition_path(object_hash: &str) -> path::PathBuf {
