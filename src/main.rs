@@ -95,6 +95,13 @@ fn ls_tree(tree_sha: &String) {
     decoder.read_to_end(&mut decoded_content).unwrap();
 
     let mut i = 0;
+
+    // skip over a first line - the one that contains a object type
+    while decoded_content[i] != b'\0' {
+        i += 1;
+    }
+    i += 1;
+
     while i < decoded_content.len() {
         let mut mode: Vec<u8> = Vec::new();
 
