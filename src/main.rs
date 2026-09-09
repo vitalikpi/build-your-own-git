@@ -26,14 +26,14 @@ fn main() -> anyhow::Result<()> {
         cat_file(object_hash);
     } else if args[1] == "hash-object" {
         let path: PathBuf = [&args[3]].iter().collect();
-        let object_hash = hash_object(path)?;
+        let (_, object_hash) = hash_object(path)?;
         println!("{}", object_hash);
     } else if args[1] == "ls-tree" {
         let sha = &args[3];
         ls_tree(sha)
     } else if args[1] == "write-tree" {
         let path: PathBuf = ["."].iter().collect();
-        let sha = write_tree(path)?;
+        let (_, sha) = write_tree(path)?;
         println!("{}", sha);
     } else {
         println!("unknown command: {}", args[1])
@@ -61,7 +61,7 @@ fn cat_file(object_hash: &str) {
     print!("{}", actual_content)
 }
 
-fn write_object(contents: Vec<u8>, object_type: &str) -> anyhow::Result<String> {
+fn write_object(contents: Vec<u8>, object_type: &str) -> anyhow::Result<(Vec<u8>, String)> {
     let mut object_content = Vec::new();
     object_content.write(object_type.as_bytes())?;
     object_content.write(b" ")?;
@@ -70,7 +70,8 @@ fn write_object(contents: Vec<u8>, object_type: &str) -> anyhow::Result<String> 
     object_content.write(&contents)?;
 
     // Calculate sha1 of the blob content
-    let object_hash: String = Sha1::digest(&contents).iter().map(|x| format!("{:02x}", x)).collect();
+    let raw_sha: Vec<u8> = Sha1::digest(&contents).into_iter().collect();
+    let object_hash: String = raw_sha.clone().into_iter().map(|x| format!("{:02x}", x)).collect();
 
     // Create a "partition" directory
     let partition_path = make_object_partition_path(&object_hash);
@@ -87,10 +88,10 @@ fn write_object(contents: Vec<u8>, object_type: &str) -> anyhow::Result<String> 
     object_file.write(&*compressed_blob_content)?;
     object_file.sync_all()?;
 
-    Ok(object_hash)
+    Ok((raw_sha, object_hash))
 }
 
-fn hash_object(path: PathBuf) -> anyhow::Result<String> {
+fn hash_object(path: PathBuf) -> anyhow::Result<(Vec<u8>, String)> {
     // Read the content of the file
     let original_content = fs::read(path)?;
 
@@ -150,7 +151,7 @@ fn ls_tree(tree_sha: &String) {
     }
 }
 
-fn write_tree(path: PathBuf) -> anyhow::Result<String> {
+fn write_tree(path: PathBuf) -> anyhow::Result<(Vec<u8>, String)> {
     let mut tree_content: Vec<u8> = Vec::new();
 
     // read all files
@@ -172,14 +173,14 @@ fn write_tree(path: PathBuf) -> anyhow::Result<String> {
             } else { //  Regular file
                 tree_content.write(b"100644 ")?;
             }
-            let sha = hash_object(entry.path())?;
-            tree_content.write(sha.as_bytes())?;
+            let (sha, _) = hash_object(entry.path())?;
+            tree_content.write(&sha)?;
         } else if meta.is_dir() { // 40000
-            let sha = write_tree(entry.path())?;
+            let (sha, _) = write_tree(entry.path())?;
             tree_content.write(b"40000 ")?;
             tree_content.write(entry.file_name().into_string().unwrap().as_bytes())?;
             tree_content.write(b"\0")?;
-            tree_content.write(sha.as_bytes())?;
+            tree_content.write(&sha)?;
         } else {
             eprintln!("Skipped: {}", entry.path().display())
         }
