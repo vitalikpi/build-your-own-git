@@ -38,7 +38,7 @@ fn main() -> anyhow::Result<()> {
     } else {
         println!("unknown command: {}", args[1])
     }
-    
+
     Ok(())
 }
 
@@ -177,6 +177,8 @@ fn write_tree(path: PathBuf) -> anyhow::Result<String> {
         } else if meta.is_dir() { // 40000
             let sha = write_tree(entry.path())?;
             tree_content.write(b"40000 ")?;
+            tree_content.write(entry.file_name().into_string().unwrap().as_bytes())?;
+            tree_content.write(b"\0")?;
             tree_content.write(sha.as_bytes())?;
         } else {
             eprintln!("Skipped: {}", entry.path().display())
