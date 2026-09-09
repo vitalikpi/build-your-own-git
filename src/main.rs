@@ -70,7 +70,7 @@ fn write_object(contents: Vec<u8>, object_type: &str) -> anyhow::Result<(Vec<u8>
     object_content.write(&contents)?;
 
     // Calculate sha1 of the blob content
-    let raw_sha: Vec<u8> = Sha1::digest(&contents).into_iter().collect();
+    let raw_sha: Vec<u8> = Sha1::digest(&object_content).into_iter().collect();
     let object_hash: String = raw_sha.clone().into_iter().map(|x| format!("{:02x}", x)).collect();
 
     // Create a "partition" directory
