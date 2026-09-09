@@ -176,7 +176,7 @@ fn write_tree(path: PathBuf) -> anyhow::Result<String> {
             tree_content.write(sha.as_bytes())?;
         } else if meta.is_dir() { // 40000
             let sha = write_tree(entry.path())?;
-            tree_content.write(b"100644 ")?;
+            tree_content.write(b"40000 ")?;
             tree_content.write(sha.as_bytes())?;
         } else {
             eprintln!("Skipped: {}", entry.path().display())
