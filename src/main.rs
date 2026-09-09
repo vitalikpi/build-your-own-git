@@ -173,6 +173,9 @@ fn write_tree(path: PathBuf) -> anyhow::Result<(Vec<u8>, String)> {
             } else { //  Regular file
                 tree_content.write(b"100644 ")?;
             }
+            tree_content.write(entry.file_name().into_string().unwrap().as_bytes())?;
+            tree_content.write(b"\0")?;
+            
             let (sha, _) = hash_object(entry.path())?;
             tree_content.write(&sha)?;
         } else if meta.is_dir() { // 40000
