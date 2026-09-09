@@ -1,13 +1,16 @@
-use std::env;
 use flate2::Compression;
 use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
 use sha1::{Digest, Sha1};
+use std::env;
 use std::fs;
+use std::fs::DirEntry;
 use std::io::Read;
 use std::io::prelude::*;
-use std::path;
-fn main() {
+use std::os::unix::fs::PermissionsExt;
+use std::path::PathBuf;
+
+fn main() -> anyhow::Result<()> {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
     eprintln!("Logs from your program will appear here!");
 
@@ -22,18 +25,25 @@ fn main() {
         let object_hash = args[3].as_str();
         cat_file(object_hash);
     } else if args[1] == "hash-object" {
-        let path = &args[3];
-        hash_object(path);
+        let path: PathBuf = [&args[3]].iter().collect();
+        let object_hash = hash_object(path)?;
+        println!("{}", object_hash);
     } else if args[1] == "ls-tree" {
-        let tree_sha = &args[3];
-        ls_tree(tree_sha)
+        let sha = &args[3];
+        ls_tree(sha)
+    } else if args[1] == "write-tree" {
+        let path: PathBuf = ["."].iter().collect();
+        let sha = write_tree(path)?;
+        println!("{}", sha);
     } else {
         println!("unknown command: {}", args[1])
     }
+    
+    Ok(())
 }
 
 fn cat_file(object_hash: &str) {
-    let path: path::PathBuf = make_object_path(object_hash);
+    let path: PathBuf = make_object_path(object_hash);
 
     // Read the contents of the blob object file from the .git/objects directory
     let blob_content = fs::read(path).unwrap();
@@ -51,40 +61,45 @@ fn cat_file(object_hash: &str) {
     print!("{}", actual_content)
 }
 
-fn hash_object(path: &str) {
-    // Read the content of the file
-    let original_content = fs::read(path).unwrap();
-
-    // Create a resulting blob content
-    let mut blob_content = Vec::new();
-    blob_content.write(b"blob ").unwrap();
-    blob_content.write(format!("{}", original_content.len()).as_bytes()).unwrap();
-    blob_content.write(b"\0").unwrap();
-    blob_content.write(&original_content).unwrap();
+fn write_object(contents: Vec<u8>, object_type: &str) -> anyhow::Result<String> {
+    let mut object_content = Vec::new();
+    object_content.write(object_type.as_bytes())?;
+    object_content.write(b" ")?;
+    object_content.write(format!("{}", contents.len()).as_bytes())?;
+    object_content.write(b"\0")?;
+    object_content.write(&contents)?;
 
     // Calculate sha1 of the blob content
-    let object_hash: String = Sha1::digest(&blob_content).iter().map(|x| format!("{:02x}", x)).collect();
+    let object_hash: String = Sha1::digest(&contents).iter().map(|x| format!("{:02x}", x)).collect();
 
     // Create a "partition" directory
     let partition_path = make_object_partition_path(&object_hash);
-    fs::create_dir(partition_path).unwrap();
+    fs::create_dir(partition_path)?;
 
     // Compress the blob using zlib
     let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
-    encoder.write_all(&*blob_content).unwrap();
-    let compressed_blob_content = encoder.finish().unwrap();
+    encoder.write_all(&*object_content)?;
+    let compressed_blob_content = encoder.finish()?;
 
-    // Write the blobl content to the file
-    let blobl_path = make_object_path(&object_hash);
-    let mut blobl_file = fs::File::create(blobl_path).unwrap();
-    blobl_file.write(&*compressed_blob_content).unwrap();
-    blobl_file.sync_all().unwrap();
+    // Write the blob content to the file
+    let object_path = make_object_path(&object_hash);
+    let mut object_file = fs::File::create(object_path)?;
+    object_file.write(&*compressed_blob_content)?;
+    object_file.sync_all()?;
 
-    println!("{}", object_hash);
+    Ok(object_hash)
+}
+
+fn hash_object(path: PathBuf) -> anyhow::Result<String> {
+    // Read the content of the file
+    let original_content = fs::read(path)?;
+
+    // Write it to the objects database
+    write_object(original_content, "blob")
 }
 
 fn ls_tree(tree_sha: &String) {
-    let path: path::PathBuf = make_object_path(tree_sha);
+    let path: PathBuf = make_object_path(tree_sha);
 
     // Read the contents of the blob object file from the .git/objects directory
     let blob_content = fs::read(path).unwrap();
@@ -135,15 +150,51 @@ fn ls_tree(tree_sha: &String) {
     }
 }
 
-fn make_object_partition_path(object_hash: &str) -> path::PathBuf {
+fn write_tree(path: PathBuf) -> anyhow::Result<String> {
+    let mut tree_content: Vec<u8> = Vec::new();
+
+    // read all files
+    let mut entries: Vec<DirEntry> = fs::read_dir(path)?
+        .map(|x| x.unwrap())
+        .collect();
+
+    entries.sort_by_key(|e| e.file_name());
+
+    for entry in entries {
+        if entry.file_name() == ".git" {
+            continue;
+        }
+
+        let meta = fs::metadata(&entry.path())?;
+        if meta.is_file() {
+            if meta.permissions().mode() & 0o111 != 0 { // Executable file
+                tree_content.write(b"100755 ")?;
+            } else { //  Regular file
+                tree_content.write(b"100644 ")?;
+            }
+            let sha = hash_object(entry.path())?;
+            tree_content.write(sha.as_bytes())?;
+        } else if meta.is_dir() { // 40000
+            let sha = write_tree(entry.path())?;
+            tree_content.write(b"100644 ")?;
+            tree_content.write(sha.as_bytes())?;
+        } else {
+            eprintln!("Skipped: {}", entry.path().display())
+        }
+    }
+
+    write_object(tree_content, "tree")
+}
+
+fn make_object_partition_path(object_hash: &str) -> PathBuf {
     let subdirectory = &object_hash[..2];
-    let path: path::PathBuf = [".git", "objects", subdirectory].iter().collect();
+    let path: PathBuf = [".git", "objects", subdirectory].iter().collect();
     path
 }
 
-fn make_object_path(object_hash: &str) -> path::PathBuf {
+fn make_object_path(object_hash: &str) -> PathBuf {
     let subdirectory = &object_hash[..2];
     let file_name = &object_hash[2..];
-    let path: path::PathBuf = [".git", "objects", subdirectory, file_name].iter().collect();
+    let path: PathBuf = [".git", "objects", subdirectory, file_name].iter().collect();
     path
 }
