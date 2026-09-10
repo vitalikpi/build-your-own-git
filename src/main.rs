@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use flate2::Compression;
 use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
@@ -10,33 +11,92 @@ use std::io::prelude::*;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 
+fn parse_args() -> anyhow::Result<(String, HashMap<String, String>, Vec<String>)>{
+    let command: String;
+    let mut named_arguments: HashMap<String, String> = HashMap::new();
+    let mut positional_arguments: Vec<String> = Vec::new();
+
+    let args: Vec<String> = env::args().collect();
+    if args.len() <= 1 { anyhow::bail!("No command provided.") }
+    if args[1].starts_with("-") { anyhow::bail!("Command can't start with -") }
+
+    command = args[1].clone();
+
+    let mut current_parameter_name: Option<String> = None;
+    for arg in args.iter().skip(2) {
+        if arg.starts_with("-") {
+            match current_parameter_name {
+                None => {
+                    current_parameter_name = Some(arg.clone());
+                }
+                Some(parameter_name) => {
+                    named_arguments.insert(parameter_name, "".to_string());
+                    current_parameter_name = Some(arg.clone())
+                }
+            }
+        } else {
+            match current_parameter_name {
+                None => {
+                    positional_arguments.push(arg.clone())
+                }
+                Some(parameter_name) => {
+                    named_arguments.insert(parameter_name, arg.to_string());
+                    current_parameter_name = None
+                }
+            }
+        }
+    }
+
+    Ok((command, named_arguments, positional_arguments))
+}
+
 fn main() -> anyhow::Result<()> {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
     eprintln!("Logs from your program will appear here!");
 
-    let args: Vec<String> = env::args().collect();
-    if args[1] == "init" {
-        fs::create_dir(".git").unwrap();
-        fs::create_dir(".git/objects").unwrap();
-        fs::create_dir(".git/refs").unwrap();
-        fs::write(".git/HEAD", "ref: refs/heads/main\n").unwrap();
+    let (command, named_arguments, positional_arguments) = parse_args()?;
+
+    if command == "init" {
+        fs::create_dir(".git")?;
+        fs::create_dir(".git/objects")?;
+        fs::create_dir(".git/refs")?;
+        fs::write(".git/HEAD", "ref: refs/heads/main\n")?;
         println!("Initialized git directory");
-    } else if args[1] == "cat-file" {
-        let object_hash = args[3].as_str();
-        cat_file(object_hash);
-    } else if args[1] == "hash-object" {
-        let path: PathBuf = [&args[3]].iter().collect();
-        let (_, object_hash) = hash_object(path)?;
-        println!("{}", object_hash);
-    } else if args[1] == "ls-tree" {
-        let sha = &args[3];
-        ls_tree(sha)
-    } else if args[1] == "write-tree" {
+    } else if command == "cat-file" {
+        match named_arguments.get("-p") {
+            None => {
+                eprintln!("No sha provided")
+            }
+            Some(object_hash) => {
+                cat_file(object_hash);
+            }
+        }
+    } else if command == "hash-object" {
+        match named_arguments.get("-w") {
+            None => {
+                eprintln!("No path provided")
+            }
+            Some(path) => {
+                let path: PathBuf = [path].iter().collect();
+                let (_, object_hash) = hash_object(path)?;
+                println!("{}", object_hash);
+            }
+        }
+    } else if command ==  "ls-tree" {
+        match named_arguments.get("--name-only") {
+            None => { eprintln!("No sha provided") }
+            Some(sha) => { ls_tree(sha) }
+        }
+    } else if command ==  "write-tree" {
         let path: PathBuf = ["."].iter().collect();
         let (_, sha) = write_tree(path)?;
         println!("{}", sha);
+    } else if command == "commit-tree" {
+        println!("Hello, World!")
+    } else if command ==  "help" {
+        println!("Hello, World!")
     } else {
-        println!("unknown command: {}", args[1])
+        println!("unknown command: {}", command)
     }
 
     Ok(())
