@@ -283,7 +283,10 @@ fn commit_tree(tree_sha: &String, parent_commit_sha: Option<&String>, message: O
     commit_content.push_str("\n");
 
     match message {
-        Some(message) => { commit_content.push_str(message); }
+        Some(message) => {
+            commit_content.push_str(message);
+            commit_content.push_str("\n");
+        }
         None => {}
     }
 
