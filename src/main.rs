@@ -92,7 +92,12 @@ fn main() -> anyhow::Result<()> {
         let (_, sha) = write_tree(path)?;
         println!("{}", sha);
     } else if command == "commit-tree" {
-        println!("Hello, World!")
+        let tree_sha = positional_arguments.first().unwrap();
+        let parent_commit_sha = named_arguments.get("-p");
+        let commit_message = named_arguments.get("-m");
+
+        let (_, commit_sha) = commit_tree(tree_sha, parent_commit_sha, commit_message)?;
+        println!("{}", commit_sha);
     } else if command ==  "help" {
         println!("Hello, World!")
     } else {
@@ -252,6 +257,38 @@ fn write_tree(path: PathBuf) -> anyhow::Result<(Vec<u8>, String)> {
     write_object(tree_content, "tree")
 }
 
+fn commit_tree(tree_sha: &String, parent_commit_sha: Option<&String>, message: Option<&String>) -> anyhow::Result<(Vec<u8>, String)> {
+    // tree 4b825dc642cb6eb9a060e54bf8d69288fbee4904
+    // parent 3b18e512dba79e4c8300dd08aeb37f8e728b8dad
+    // author John Doe <john@example.com> 1234567890 +0000
+    // committer John Doe <john@example.com> 1234567890 +0000
+    //
+    // Initial commit
+    let mut commit_content: String = "tree ".to_string();
+
+    commit_content.push_str(tree_sha);
+    commit_content.push_str("\n");
+
+    match parent_commit_sha {
+        Some(parent_commit_sha) => {
+            commit_content.push_str(parent_commit_sha);
+            commit_content.push_str("\n");
+        }
+        None => {}
+    }
+
+    commit_content.push_str("author John Doe <john@example.com> 1234567890 +0000");
+    commit_content.push_str("\n");
+    commit_content.push_str("\n");
+
+    match message {
+        Some(message) => { commit_content.push_str(message); }
+        None => {}
+    }
+
+    write_object(commit_content.into_bytes(), "commit")
+}
+
 fn make_object_partition_path(object_hash: &str) -> PathBuf {
     let subdirectory = &object_hash[..2];
     let path: PathBuf = [".git", "objects", subdirectory].iter().collect();
@@ -264,3 +301,4 @@ fn make_object_path(object_hash: &str) -> PathBuf {
     let path: PathBuf = [".git", "objects", subdirectory, file_name].iter().collect();
     path
 }
+
