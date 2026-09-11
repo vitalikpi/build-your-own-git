@@ -271,6 +271,7 @@ fn commit_tree(tree_sha: &String, parent_commit_sha: Option<&String>, message: O
 
     match parent_commit_sha {
         Some(parent_commit_sha) => {
+            commit_content.push_str("parent ");
             commit_content.push_str(parent_commit_sha);
             commit_content.push_str("\n");
         }
