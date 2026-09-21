@@ -11,6 +11,8 @@ use std::io::prelude::*;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 
+mod paths;
+
 fn parse_args() -> anyhow::Result<(String, HashMap<String, String>, Vec<String>)>{
     let command: String;
     let mut named_arguments: HashMap<String, String> = HashMap::new();
@@ -51,9 +53,6 @@ fn parse_args() -> anyhow::Result<(String, HashMap<String, String>, Vec<String>)
 }
 
 fn main() -> anyhow::Result<()> {
-    // You can use print statements as follows for debugging, they'll be visible when running tests.
-    eprintln!("Logs from your program will appear here!");
-
     let (command, named_arguments, positional_arguments) = parse_args()?;
 
     if command == "init" {
@@ -108,7 +107,7 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn cat_file(object_hash: &str) {
-    let path: PathBuf = make_object_path(object_hash);
+    let (_, path) = paths::make_object_path(object_hash);
 
     // Read the contents of the blob object file from the .git/objects directory
     let blob_content = fs::read(path).unwrap();
@@ -139,7 +138,7 @@ fn write_object(contents: Vec<u8>, object_type: &str) -> anyhow::Result<(Vec<u8>
     let object_hash: String = raw_sha.clone().into_iter().map(|x| format!("{:02x}", x)).collect();
 
     // Create a "partition" directory
-    let partition_path = make_object_partition_path(&object_hash);
+    let (partition_path, object_path) = paths::make_object_path(&object_hash);
     fs::create_dir(partition_path)?;
 
     // Compress the blob using zlib
@@ -148,7 +147,6 @@ fn write_object(contents: Vec<u8>, object_type: &str) -> anyhow::Result<(Vec<u8>
     let compressed_blob_content = encoder.finish()?;
 
     // Write the blob content to the file
-    let object_path = make_object_path(&object_hash);
     let mut object_file = fs::File::create(object_path)?;
     object_file.write(&*compressed_blob_content)?;
     object_file.sync_all()?;
@@ -165,7 +163,7 @@ fn hash_object(path: PathBuf) -> anyhow::Result<(Vec<u8>, String)> {
 }
 
 fn ls_tree(tree_sha: &String) {
-    let path: PathBuf = make_object_path(tree_sha);
+    let (_, path) = paths::make_object_path(tree_sha);
 
     // Read the contents of the blob object file from the .git/objects directory
     let blob_content = fs::read(path).unwrap();
@@ -291,18 +289,5 @@ fn commit_tree(tree_sha: &String, parent_commit_sha: Option<&String>, message: O
     }
 
     write_object(commit_content.into_bytes(), "commit")
-}
-
-fn make_object_partition_path(object_hash: &str) -> PathBuf {
-    let subdirectory = &object_hash[..2];
-    let path: PathBuf = [".git", "objects", subdirectory].iter().collect();
-    path
-}
-
-fn make_object_path(object_hash: &str) -> PathBuf {
-    let subdirectory = &object_hash[..2];
-    let file_name = &object_hash[2..];
-    let path: PathBuf = [".git", "objects", subdirectory, file_name].iter().collect();
-    path
 }
 
