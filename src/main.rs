@@ -1,8 +1,8 @@
-use std::collections::HashMap;
 use flate2::Compression;
 use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
 use sha1::{Digest, Sha1};
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::fs::DirEntry;
@@ -67,7 +67,8 @@ fn main() -> anyhow::Result<()> {
                 eprintln!("No sha provided")
             }
             Some(object_hash) => {
-                cat_file(object_hash);
+                let content = read_object(object_hash)?;
+                print!("{}", content)
             }
         }
     } else if command == "hash-object" {
@@ -97,6 +98,13 @@ fn main() -> anyhow::Result<()> {
 
         let (_, commit_sha) = commit_tree(tree_sha, parent_commit_sha, commit_message)?;
         println!("{}", commit_sha);
+//    } else if command == "checkout-empty" {
+//        let commit_sha = positional_arguments.first().unwrap();
+
+//        let (_, path) = make_object_path(commit_sha);
+//        let updated_paths = checkout_empty(commit_sha);
+
+//        println!("Updated {} path(s) from the index", 0)
     } else if command ==  "help" {
         println!("Hello, World!")
     } else {
@@ -106,23 +114,38 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn cat_file(object_hash: &str) {
+/*
+fn checkout_empty(commit_sha: &String) -> anyhow::Result<u8> {
+    let (_, object_path) = make_object_path(commit_sha);
+
+
+
+    return Ok(0);
+}
+
+fn checkout_tree(tree_sha: &String) -> anyhow::Result<u8> {
+    return Ok(0);
+}
+*/
+
+fn read_object(object_hash: &str) -> anyhow::Result<String> {
     let (_, path) = paths::make_object_path(object_hash);
 
     // Read the contents of the blob object file from the .git/objects directory
-    let blob_content = fs::read(path).unwrap();
+    let blob_content = fs::read(path)?;
 
     // Decompress the contents
     let mut decoder = ZlibDecoder::new(&*blob_content);
     let mut decoded_content = String::new();
-    decoder.read_to_string(&mut decoded_content).unwrap();
+    decoder.read_to_string(&mut decoded_content)?;
 
     // Extract the actual "content" from the decompressed data
     let delimiter_index = decoded_content.find('\0').unwrap();
 
     // Write the content to stdout
     let actual_content = &decoded_content[delimiter_index + 1..];
-    print!("{}", actual_content)
+
+    Ok(actual_content.to_string())
 }
 
 fn write_object(contents: Vec<u8>, object_type: &str) -> anyhow::Result<(Vec<u8>, String)> {
@@ -153,6 +176,8 @@ fn write_object(contents: Vec<u8>, object_type: &str) -> anyhow::Result<(Vec<u8>
 
     Ok((raw_sha, object_hash))
 }
+
+//fn read_object(sha)
 
 fn hash_object(path: PathBuf) -> anyhow::Result<(Vec<u8>, String)> {
     // Read the content of the file
