@@ -128,7 +128,7 @@ fn checkout_tree(tree_sha: &String) -> anyhow::Result<u8> {
 }
 */
 
-fn read_object(object_hash: &str) -> anyhow::Result<String> {
+fn read_object(object_hash: &str) -> anyhow::Result<Vec<u8>> {
     let (_, path) = paths::make_object_path(object_hash);
 
     // Read the contents of the blob object file from the .git/objects directory
@@ -136,8 +136,8 @@ fn read_object(object_hash: &str) -> anyhow::Result<String> {
 
     // Decompress the contents
     let mut decoder = ZlibDecoder::new(&*blob_content);
-    let mut decoded_content = String::new();
-    decoder.read_to_string(&mut decoded_content)?;
+    let mut decoded_content: Vec<u8> = Vec::new();
+    decoder.read_to_end(&mut decoded_content)?;
 
     // Extract the actual "content" from the decompressed data
     let delimiter_index = decoded_content.find('\0').unwrap();
