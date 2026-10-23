@@ -3,7 +3,7 @@ use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
 use sha1::{Digest, Sha1};
 use std::collections::HashMap;
-use std::env;
+use std::{env, io};
 use std::fs;
 use std::fs::DirEntry;
 use std::io::Read;
@@ -63,12 +63,10 @@ fn main() -> anyhow::Result<()> {
         println!("Initialized git directory");
     } else if command == "cat-file" {
         match named_arguments.get("-p") {
-            None => {
-                eprintln!("No sha provided")
-            }
+            None => eprintln!("No sha provided"),
             Some(object_hash) => {
                 let content = read_object(object_hash)?;
-                print!("{}", content)
+                io::stdout().write_all(&content)?;
             }
         }
     } else if command == "hash-object" {
@@ -140,12 +138,15 @@ fn read_object(object_hash: &str) -> anyhow::Result<Vec<u8>> {
     decoder.read_to_end(&mut decoded_content)?;
 
     // Extract the actual "content" from the decompressed data
-    let delimiter_index = decoded_content.find('\0').unwrap();
+    let mut delimiter_index = 0; // = decoded_content.find('\0').unwrap();
 
-    // Write the content to stdout
-    let actual_content = &decoded_content[delimiter_index + 1..];
+    while decoded_content[delimiter_index] != b'\0' {
+        delimiter_index += 1;
+    }
 
-    Ok(actual_content.to_string())
+    decoded_content.drain(0..delimiter_index);
+
+    Ok(decoded_content)
 }
 
 fn write_object(contents: Vec<u8>, object_type: &str) -> anyhow::Result<(Vec<u8>, String)> {
