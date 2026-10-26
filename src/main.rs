@@ -1,8 +1,6 @@
-use flate2::read::ZlibDecoder;
 use std::collections::HashMap;
 use std::fs;
 use std::fs::DirEntry;
-use std::io::Read;
 use std::io::prelude::*;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
@@ -10,6 +8,8 @@ use std::{env, io};
 
 mod paths;
 mod object_store;
+
+static GIT_DIR: &str = ".mygit";
 
 fn parse_args() -> anyhow::Result<(String, HashMap<String, String>, Vec<String>)>{
     let command: String;
@@ -54,10 +54,10 @@ fn main() -> anyhow::Result<()> {
     let (command, named_arguments, positional_arguments) = parse_args()?;
 
     if command == "init" {
-        fs::create_dir(".git")?;
-        fs::create_dir(".git/objects")?;
-        fs::create_dir(".git/refs")?;
-        fs::write(".git/HEAD", "ref: refs/heads/main\n")?;
+        fs::create_dir(GIT_DIR)?;
+        fs::create_dir([GIT_DIR, "objects"].iter().collect::<PathBuf>())?;
+        fs::create_dir([GIT_DIR, "refs"].iter().collect::<PathBuf>())?;
+        fs::write([GIT_DIR, "refs"].iter().collect::<PathBuf>(), "ref: refs/heads/main\n")?;
         println!("Initialized git directory");
     } else if command == "cat-file" {
         match named_arguments.get("-p") {
@@ -79,7 +79,7 @@ fn main() -> anyhow::Result<()> {
     } else if command ==  "ls-tree" {
         match named_arguments.get("--name-only") {
             None => eprintln!("No sha provided"),
-            Some(sha) => ls_tree(sha),
+            Some(sha) => ls_tree(sha)?,
         }
     } else if command ==  "write-tree" {
         let path: PathBuf = ["."].iter().collect();
@@ -116,7 +116,7 @@ fn hash_object(path: PathBuf) -> anyhow::Result<(Vec<u8>, String)> {
     object_store::write_object(original_content, "blob")
 }
 
-fn ls_tree(tree_sha: &String) {
+fn ls_tree(tree_sha: &String) -> anyhow::Result<()>{
     let decoded_content = object_store::read_object(tree_sha)?;
 
     let mut i = 0;
@@ -151,6 +151,8 @@ fn ls_tree(tree_sha: &String) {
         //result.push((mode_str, name_str, sha_str));
         println!("{}", name_str)
     }
+
+    Ok(())
 }
 
 fn write_tree(path: PathBuf) -> anyhow::Result<(Vec<u8>, String)> {
@@ -164,7 +166,7 @@ fn write_tree(path: PathBuf) -> anyhow::Result<(Vec<u8>, String)> {
     entries.sort_by_key(|e| e.file_name());
 
     for entry in entries {
-        if entry.file_name() == ".git" {
+        if entry.file_name() == GIT_DIR {
             continue;
         }
 
@@ -232,9 +234,6 @@ fn commit_tree(tree_sha: &String, parent_commit_sha: Option<&String>, message: O
 
 fn checkout_empty(commit_sha: &String) -> anyhow::Result<u8> {
     let content = object_store::read_object(commit_sha);
-    
-    
-
 
     return Ok(0);
 }
