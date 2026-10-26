@@ -20,7 +20,6 @@ pub fn read_object(object_hash: &str) -> anyhow::Result<Vec<u8>> {
 
     // Extract the actual "content" from the decompressed data
     let mut delimiter_index = 0; // = decoded_content.find('\0').unwrap();
-
     while decoded_content[delimiter_index] != b'\0' {
         delimiter_index += 1;
     }

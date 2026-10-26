@@ -78,8 +78,8 @@ fn main() -> anyhow::Result<()> {
         }
     } else if command ==  "ls-tree" {
         match named_arguments.get("--name-only") {
-            None => { eprintln!("No sha provided") }
-            Some(sha) => { ls_tree(sha) }
+            None => eprintln!("No sha provided"),
+            Some(sha) => ls_tree(sha),
         }
     } else if command ==  "write-tree" {
         let path: PathBuf = ["."].iter().collect();
@@ -108,14 +108,6 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn checkout_empty(commit_sha: &String) -> anyhow::Result<u8> {
-
-    //object_store::read_object(commit_sha)
-
-
-    return Ok(0);
-}
-
 fn hash_object(path: PathBuf) -> anyhow::Result<(Vec<u8>, String)> {
     // Read the content of the file
     let original_content = fs::read(path)?;
@@ -125,24 +117,9 @@ fn hash_object(path: PathBuf) -> anyhow::Result<(Vec<u8>, String)> {
 }
 
 fn ls_tree(tree_sha: &String) {
-    let (_, path) = paths::make_object_path(tree_sha);
-
-    // Read the contents of the blob object file from the .git/objects directory
-    let blob_content = fs::read(path).unwrap();
-
-    // Decompress the contents
-    let mut decoder = ZlibDecoder::new(&*blob_content);
-    let mut decoded_content: Vec<u8> = Vec::new();
-    decoder.read_to_end(&mut decoded_content).unwrap();
+    let decoded_content = object_store::read_object(tree_sha)?;
 
     let mut i = 0;
-
-    // skip over a first line - the one that contains a object type
-    while decoded_content[i] != b'\0' {
-        i += 1;
-    }
-    i += 1;
-
     while i < decoded_content.len() {
         let mut mode: Vec<u8> = Vec::new();
 
@@ -251,4 +228,13 @@ fn commit_tree(tree_sha: &String, parent_commit_sha: Option<&String>, message: O
     }
 
     object_store::write_object(commit_content.into_bytes(), "commit")
+}
+
+fn checkout_empty(commit_sha: &String) -> anyhow::Result<u8> {
+    let content = object_store::read_object(commit_sha);
+    
+    
+
+
+    return Ok(0);
 }
