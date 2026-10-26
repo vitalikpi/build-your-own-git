@@ -5,11 +5,10 @@ use std::io::prelude::*;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::{env, io};
+use thiserror::__private::AsDisplay;
 
 mod paths;
 mod object_store;
-
-static GIT_DIR: &str = ".mygit";
 
 fn parse_args() -> anyhow::Result<(String, HashMap<String, String>, Vec<String>)>{
     let command: String;
@@ -54,10 +53,10 @@ fn main() -> anyhow::Result<()> {
     let (command, named_arguments, positional_arguments) = parse_args()?;
 
     if command == "init" {
-        fs::create_dir(GIT_DIR)?;
-        fs::create_dir([GIT_DIR, "objects"].iter().collect::<PathBuf>())?;
-        fs::create_dir([GIT_DIR, "refs"].iter().collect::<PathBuf>())?;
-        fs::write([GIT_DIR, "HEAD"].iter().collect::<PathBuf>(), "ref: refs/heads/main\n")?;
+        fs::create_dir(paths::GIT_DIR)?;
+        fs::create_dir([paths::GIT_DIR, "objects"].iter().collect::<PathBuf>())?;
+        fs::create_dir([paths::GIT_DIR, "refs"].iter().collect::<PathBuf>())?;
+        fs::write([paths::GIT_DIR, "HEAD"].iter().collect::<PathBuf>(), "ref: refs/heads/main\n")?;
         println!("Initialized git directory");
     } else if command == "cat-file" {
         match named_arguments.get("-p") {
@@ -156,6 +155,7 @@ fn ls_tree(tree_sha: &String) -> anyhow::Result<()>{
 }
 
 fn write_tree(path: PathBuf) -> anyhow::Result<(Vec<u8>, String)> {
+    println!("{}", path.as_display());
     let mut tree_content: Vec<u8> = Vec::new();
 
     // read all files
@@ -166,7 +166,8 @@ fn write_tree(path: PathBuf) -> anyhow::Result<(Vec<u8>, String)> {
     entries.sort_by_key(|e| e.file_name());
 
     for entry in entries {
-        if entry.file_name() == GIT_DIR {
+        if entry.file_name() == paths::GIT_DIR || entry.file_name().to_string_lossy().starts_with('.') {
+            // skip the .git folder and anything that starts with . - this is for educational purpose only - this is fine
             continue;
         }
 

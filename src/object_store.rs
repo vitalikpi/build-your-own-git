@@ -43,7 +43,7 @@ pub fn write_object(contents: Vec<u8>, object_type: &str) -> anyhow::Result<(Vec
 
     // Create a "partition" directory
     let (partition_path, object_path) = paths::make_object_path(&object_hash);
-    fs::create_dir(partition_path)?;
+    fs::create_dir_all(partition_path)?;
 
     // Compress the blob using zlib
     let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
