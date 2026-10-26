@@ -57,7 +57,7 @@ fn main() -> anyhow::Result<()> {
         fs::create_dir(GIT_DIR)?;
         fs::create_dir([GIT_DIR, "objects"].iter().collect::<PathBuf>())?;
         fs::create_dir([GIT_DIR, "refs"].iter().collect::<PathBuf>())?;
-        fs::write([GIT_DIR, "refs"].iter().collect::<PathBuf>(), "ref: refs/heads/main\n")?;
+        fs::write([GIT_DIR, "HEAD"].iter().collect::<PathBuf>(), "ref: refs/heads/main\n")?;
         println!("Initialized git directory");
     } else if command == "cat-file" {
         match named_arguments.get("-p") {
