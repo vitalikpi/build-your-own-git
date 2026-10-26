@@ -1,17 +1,15 @@
-use flate2::Compression;
 use flate2::read::ZlibDecoder;
-use flate2::write::ZlibEncoder;
-use sha1::{Digest, Sha1};
 use std::collections::HashMap;
-use std::{env, io};
 use std::fs;
 use std::fs::DirEntry;
 use std::io::Read;
 use std::io::prelude::*;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
+use std::{env, io};
 
 mod paths;
+mod object_store;
 
 fn parse_args() -> anyhow::Result<(String, HashMap<String, String>, Vec<String>)>{
     let command: String;
@@ -65,15 +63,13 @@ fn main() -> anyhow::Result<()> {
         match named_arguments.get("-p") {
             None => eprintln!("No sha provided"),
             Some(object_hash) => {
-                let content = read_object(object_hash)?;
+                let content = object_store::read_object(object_hash)?;
                 io::stdout().write_all(&content)?;
             }
         }
     } else if command == "hash-object" {
         match named_arguments.get("-w") {
-            None => {
-                eprintln!("No path provided")
-            }
+            None => { eprintln!("No path provided")}
             Some(path) => {
                 let path: PathBuf = [path].iter().collect();
                 let (_, object_hash) = hash_object(path)?;
@@ -96,13 +92,13 @@ fn main() -> anyhow::Result<()> {
 
         let (_, commit_sha) = commit_tree(tree_sha, parent_commit_sha, commit_message)?;
         println!("{}", commit_sha);
-//    } else if command == "checkout-empty" {
-//        let commit_sha = positional_arguments.first().unwrap();
+    } else if command == "checkout-empty" {
+        let commit_sha = positional_arguments.first().unwrap();
 
-//        let (_, path) = make_object_path(commit_sha);
-//        let updated_paths = checkout_empty(commit_sha);
+        let (_, path) = paths::make_object_path(commit_sha);
+        let updated_paths = checkout_empty(commit_sha);
 
-//        println!("Updated {} path(s) from the index", 0)
+        println!("Updated {} path(s) from the index", 0)
     } else if command ==  "help" {
         println!("Hello, World!")
     } else {
@@ -112,80 +108,20 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-/*
 fn checkout_empty(commit_sha: &String) -> anyhow::Result<u8> {
-    let (_, object_path) = make_object_path(commit_sha);
 
+    //object_store::read_object(commit_sha)
 
 
     return Ok(0);
 }
-
-fn checkout_tree(tree_sha: &String) -> anyhow::Result<u8> {
-    return Ok(0);
-}
-*/
-
-fn read_object(object_hash: &str) -> anyhow::Result<Vec<u8>> {
-    let (_, path) = paths::make_object_path(object_hash);
-
-    // Read the contents of the blob object file from the .git/objects directory
-    let blob_content = fs::read(path)?;
-
-    // Decompress the contents
-    let mut decoder = ZlibDecoder::new(&*blob_content);
-    let mut decoded_content: Vec<u8> = Vec::new();
-    decoder.read_to_end(&mut decoded_content)?;
-
-    // Extract the actual "content" from the decompressed data
-    let mut delimiter_index = 0; // = decoded_content.find('\0').unwrap();
-
-    while decoded_content[delimiter_index] != b'\0' {
-        delimiter_index += 1;
-    }
-
-    decoded_content.drain(0..delimiter_index);
-
-    Ok(decoded_content)
-}
-
-fn write_object(contents: Vec<u8>, object_type: &str) -> anyhow::Result<(Vec<u8>, String)> {
-    let mut object_content = Vec::new();
-    object_content.write(object_type.as_bytes())?;
-    object_content.write(b" ")?;
-    object_content.write(format!("{}", contents.len()).as_bytes())?;
-    object_content.write(b"\0")?;
-    object_content.write(&contents)?;
-
-    // Calculate sha1 of the blob content
-    let raw_sha: Vec<u8> = Sha1::digest(&object_content).into_iter().collect();
-    let object_hash: String = raw_sha.clone().into_iter().map(|x| format!("{:02x}", x)).collect();
-
-    // Create a "partition" directory
-    let (partition_path, object_path) = paths::make_object_path(&object_hash);
-    fs::create_dir(partition_path)?;
-
-    // Compress the blob using zlib
-    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
-    encoder.write_all(&*object_content)?;
-    let compressed_blob_content = encoder.finish()?;
-
-    // Write the blob content to the file
-    let mut object_file = fs::File::create(object_path)?;
-    object_file.write(&*compressed_blob_content)?;
-    object_file.sync_all()?;
-
-    Ok((raw_sha, object_hash))
-}
-
-//fn read_object(sha)
 
 fn hash_object(path: PathBuf) -> anyhow::Result<(Vec<u8>, String)> {
     // Read the content of the file
     let original_content = fs::read(path)?;
 
     // Write it to the objects database
-    write_object(original_content, "blob")
+    object_store::write_object(original_content, "blob")
 }
 
 fn ls_tree(tree_sha: &String) {
@@ -278,7 +214,7 @@ fn write_tree(path: PathBuf) -> anyhow::Result<(Vec<u8>, String)> {
         }
     }
 
-    write_object(tree_content, "tree")
+    object_store::write_object(tree_content, "tree")
 }
 
 fn commit_tree(tree_sha: &String, parent_commit_sha: Option<&String>, message: Option<&String>) -> anyhow::Result<(Vec<u8>, String)> {
@@ -314,6 +250,5 @@ fn commit_tree(tree_sha: &String, parent_commit_sha: Option<&String>, message: O
         None => {}
     }
 
-    write_object(commit_content.into_bytes(), "commit")
+    object_store::write_object(commit_content.into_bytes(), "commit")
 }
-
