@@ -71,7 +71,7 @@ impl Tree {
                 _ => panic!("unknown object type")
             };
 
-            entries.push(TreeEntry { mode, name: name_str, sha: Sha::new(&sha) });
+            entries.push(TreeEntry { mode, name: name_str, sha: Sha::new(&sha)? });
         }
 
         Ok(Self { entries })
@@ -90,17 +90,19 @@ impl Tree {
                     tree_content.write(b"100644 ")?;
                     tree_content.write(entry.name.as_bytes())?;
                     tree_content.write(b"\0")?;
+                    tree_content.write(&entry.sha.value)?;
                 }
                 Mode::Executable => {
                     tree_content.write(b"100755 ")?;
                     tree_content.write(entry.name.as_bytes())?;
                     tree_content.write(b"\0")?;
+                    tree_content.write(&entry.sha.value)?;
                 }
                 Mode::Directory => {
                     tree_content.write(b"40000 ")?;
                     tree_content.write(entry.name.as_bytes())?;
                     tree_content.write(b"\0")?;
-                    tree_content.write(&entry.sha.value)?; // TODO: is this correct
+                    tree_content.write(&entry.sha.value)?;
                 }
                 Mode::Symlink => eprintln!("Skipped: {}", entry.name),
                 Mode::Submodule => eprintln!("Skipped: {}", entry.name),

@@ -8,7 +8,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use anyhow::Context;
 
-pub static GIT_DIR: &str = ".git";
+pub static GIT_DIR: &str = ".mygit";
 
 pub fn make_object_path(object_hash: &Sha) -> (PathBuf, PathBuf) {
     let sha_str = object_hash.to_string();
@@ -33,10 +33,17 @@ pub struct Sha {
 }
 
 impl Sha {
-    pub fn new(object_content: &Vec<u8>) -> Self {
+    pub fn hash(object_content: &Vec<u8>) -> Self {
         let value: [u8; 20] = Sha1::digest(&object_content).into();
         Self { value }
     }
+
+    pub fn new(value: &Vec<u8>) -> anyhow::Result<Self> {
+        let value: [u8; 20] = value.as_slice().try_into()?;
+        Ok(Self { value: value  })
+    }
+
+
 
     pub fn from_string(s: &str) -> anyhow::Result<Self> {
         if s.len() != 40 {
@@ -99,7 +106,7 @@ pub fn read_object(object_hash: &Sha) -> anyhow::Result<(ObjectType, usize, Vec<
     }
     let size: usize = size.parse()?;
 
-    decoded_content.drain(0..delimiter_index);
+    decoded_content.drain(0..=delimiter_index);
 
     Ok((object_type, size, decoded_content))
 }
@@ -120,7 +127,7 @@ pub fn write_object(contents: Vec<u8>, object_type: ObjectType) -> anyhow::Resul
     object_content.write(&contents)?;
 
     // Calculate sha1 of the blob content
-    let sha = Sha::new(&object_content);
+    let sha = Sha::hash(&object_content);
 
     // Create a "partition" Directory
     let (partition_path, object_path) = make_object_path(&sha);
