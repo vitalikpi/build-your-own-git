@@ -8,7 +8,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use anyhow::Context;
 
-pub static GIT_DIR: &str = ".mygit";
+pub static GIT_DIR: &str = ".git";
 
 pub fn make_object_path(object_hash: &Sha) -> (PathBuf, PathBuf) {
     let sha_str = object_hash.to_string();

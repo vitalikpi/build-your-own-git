@@ -1,5 +1,6 @@
+use anyhow::Context;
 use crate::object_store;
-use crate::object_store::{ObjectType, Sha};
+use crate::object_store::{read_object, ObjectType, Sha};
 
 #[derive(PartialEq)]
 pub struct Commit {
@@ -10,24 +11,51 @@ pub struct Commit {
 }
 
 impl Commit {
-    /* TODO:
-    pub fn read(sha: String) -> anyhow::Result<Self> {
+
+    pub fn read(sha: Sha) -> anyhow::Result<Self> {
         let (object_type, _, content) = read_object(&sha)?;
         assert!(object_type == ObjectType::Commit);
 
-        let tree_sha: String;
-        let parent_sha: Option<String>;
-        let message: String;
-        let commiter: String;
+        Commit::parse(content)
+    }
 
-        Self {
-            tree_sha
+    fn parse(content: Vec<u8>) -> anyhow::Result<Self> {
+        let mut tree_sha: Option<Sha> = None;
+        let mut parent_sha: Option<Sha> = None;
+        let mut message: Option<String> = None;
+        let mut commiter: Option<String> = None;
+
+        let content = std::str::from_utf8(&content)?;
+
+        for line in content.lines() {
+            if line.len() == 0 {
+                break;
+            }
+
+            if let Some(parsed_val) = line.strip_prefix("tree ").map(|s| Sha::from_string(s)).transpose()? {
+                tree_sha = Some(parsed_val)
+            }
+
+            if let Some(parsed_val) = line.strip_prefix("parent ").map(|s| Sha::from_string(s)).transpose()? {
+                parent_sha = Some(parsed_val)
+            }
+
+            if let Some(parsed_val) = line.strip_prefix("commiter ") {
+                commiter = Some(parsed_val.to_string())
+            }
+        }
+
+        message = content.split_once("\n\n").map(|(_,r)| r.to_string());
+
+        let tree_sha = tree_sha.context("missing tree sha in a commit object")?;
+
+        Ok(Self {
+            tree_sha,
             parent_sha,
             message,
             commiter
-        }
+        })
     }
-    */
 
     pub fn store(&self) -> anyhow::Result<Sha> {
         // tree 4b825dc642cb6eb9a060e54bf8d69288fbee4904

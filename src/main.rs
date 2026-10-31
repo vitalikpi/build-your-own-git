@@ -6,6 +6,7 @@ use std::io::prelude::*;
 use std::path::PathBuf;
 use std::{env, io};
 use anyhow::Context;
+use crate::commit::Commit;
 
 mod object_store;
 mod tree;
@@ -94,9 +95,12 @@ fn main() -> anyhow::Result<()> {
         let commit_sha = commit.store()?;
         println!("{}", commit_sha.to_string());
     } else if command == "checkout-empty" {
-        let commit_sha = positional_arguments.first().unwrap();
+        let commit_sha_str = positional_arguments.first().context("missing commit sha")?;
+        let commit_sha = Sha::from_string(commit_sha_str).context("invalid commit sha")?;;
 
-        _ = checkout_empty(commit_sha);
+        let commit = Commit::read(commit_sha)?;
+        
+        filesystem::checkout_tree(&PathBuf::from("."), &commit.tree_sha)?;
         println!("Updated {} path(s) from the index", 0)
     } else if command ==  "help" {
         println!("Hello, World!")

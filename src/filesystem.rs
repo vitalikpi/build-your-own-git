@@ -62,7 +62,7 @@ pub fn store_dir(path: PathBuf) -> anyhow::Result<Sha> {
     tree.store()
 }
 
-fn checkout_tree(path: &PathBuf, tree_sha: &Sha) -> anyhow::Result<()> {
+pub fn checkout_tree(path: &PathBuf, tree_sha: &Sha) -> anyhow::Result<()> {
     let tree = tree::Tree::read(tree_sha)?;
 
     for entry in tree.entries {
